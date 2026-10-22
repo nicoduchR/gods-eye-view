@@ -252,6 +252,35 @@ test('stats guide the user, show progress, and summarize a route honestly', () =
   assert.equal(directionsLayer.getStats().count, 0);
 });
 
+test('roundabout exits use French feminine ordinals, including 21e', () => {
+  try {
+    setLocale('fr');
+    for (const [exit, ordinal] of [
+      [1, '1re'],
+      [2, '2e'],
+      [3, '3e'],
+      [11, '11e'],
+      [21, '21e'],
+      [31, '31e'],
+    ]) {
+      assert.equal(
+        directionsInstruction({
+          type: 'roundabout',
+          exit,
+          name: 'Rue Victor Hugo',
+        }),
+        `Au rond-point, prenez la ${ordinal} sortie vers Rue Victor Hugo`,
+      );
+    }
+  } finally {
+    setLocale('en');
+  }
+  assert.equal(
+    directionsInstruction({ type: 'roundabout', exit: 21 }),
+    'At the roundabout, take the 21st exit',
+  );
+});
+
 test('step cards name the maneuver, its leg, and what comes next', () => {
   const copy = directionsStepCopy(route.steps, 1);
   assert.equal(copy.title, 'Turn right onto Kansakoulukatu');

@@ -17,9 +17,10 @@ import {
   writeStoredLocale,
 } from './locale.js';
 import es from './locales/es.json' with { type: 'json' };
+import fr from './locales/fr.json' with { type: 'json' };
 import ru from './locales/ru.json' with { type: 'json' };
 
-const CATALOGS = Object.freeze({ es, ru });
+const CATALOGS = Object.freeze({ es, fr, ru });
 
 let currentLocale = DEFAULT_LOCALE;
 

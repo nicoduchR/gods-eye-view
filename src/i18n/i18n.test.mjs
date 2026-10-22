@@ -34,6 +34,9 @@ test('normalizeLocale folds regional variants and rejects unshipped tags', () =>
   assert.equal(normalizeLocale('ru-RU'), 'ru');
   assert.equal(normalizeLocale(' RU '), 'ru');
   assert.equal(normalizeLocale('en_GB'), 'en');
+  assert.equal(normalizeLocale('fr-FR'), 'fr');
+  assert.equal(normalizeLocale('fr_CA'), 'fr');
+  assert.equal(normalizeLocale(' FR '), 'fr');
   assert.equal(normalizeLocale('xx'), null);
   assert.equal(normalizeLocale(undefined), null);
 });
@@ -84,6 +87,45 @@ test('a throwing storage never escapes', () => {
     'en',
   );
   assert.equal(writeStoredLocale('ru', storage), false);
+});
+
+test('French is selected from regional browser tags, stored choice or URL override', () => {
+  const storage = memoryStorage();
+  const location = { search: '' };
+  assert.equal(
+    resolveLocale({ location, storage, languages: ['fr-CA', 'en'] }),
+    'fr',
+  );
+  assert.equal(writeStoredLocale('fr-FR', storage), true);
+  assert.equal(resolveLocale({ location, storage, languages: ['en'] }), 'fr');
+  assert.equal(
+    resolveLocale({
+      location: { search: '?lang=es' },
+      storage,
+      languages: ['fr'],
+    }),
+    'es',
+  );
+  const doc = { documentElement: {} };
+  applyDocumentLanguage(doc, 'fr-CA');
+  assert.deepEqual(doc.documentElement, { lang: 'fr', dir: 'ltr' });
+});
+
+test('French interpolates messages and uses singular zero and plural millions', () => {
+  setLocale('fr');
+  assert.equal(
+    t('Could not arrive at {place}', { place: 'Paris' }),
+    'Impossible d’atteindre Paris',
+  );
+  const label = (count) =>
+    tn(count, '{count} map object', '{count} map objects', {
+      count: formatNumber(count),
+    });
+  assert.equal(label(0), '0 objet cartographique');
+  assert.equal(label(1), '1 objet cartographique');
+  assert.equal(label(1.5), '1,5 objet cartographique');
+  assert.equal(label(2), '2 objets cartographiques');
+  assert.equal(label(1_000_000), '1 000 000 objets cartographiques');
 });
 
 test('applyDocumentLanguage sets lang and dir', () => {
@@ -153,6 +195,9 @@ test('Intl formatters follow the active locale', () => {
   setLocale('ru');
   assert.equal(formatDate(date, options), '15 января 2026 г.');
   assert.equal(formatNumber(1234.5), '1 234,5');
+  setLocale('fr');
+  assert.equal(formatDate(date, options), '15 janvier 2026');
+  assert.equal(formatNumber(1234.5), '1 234,5');
 });
 
 function fakeElement({ text = '', attributes = {} } = {}) {

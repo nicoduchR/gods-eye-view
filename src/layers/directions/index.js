@@ -18,7 +18,13 @@
 
 import * as Cesium from 'cesium';
 import { roadLabel } from '../../data/routeSteps.js';
-import { t, msg, formatNumber, translateKnown } from '../../i18n/index.js';
+import {
+  t,
+  msg,
+  getLocale,
+  formatNumber,
+  translateKnown,
+} from '../../i18n/index.js';
 import { pointerOwnerName } from '../../data/pointerOwnerNames.js';
 import { formatQuantity } from '../../ui/unitLabels.js';
 
@@ -212,7 +218,7 @@ function laneWord(modifier) {
 /** "1st", "2nd", … for a roundabout exit. */
 function exitOrdinal(exit) {
   const number = formatNumber(exit);
-  switch (new Intl.PluralRules('en', { type: 'ordinal' }).select(exit)) {
+  switch (new Intl.PluralRules(getLocale(), { type: 'ordinal' }).select(exit)) {
     case 'one':
       return t('{number}st', { context: 'ordinal', number });
     case 'two':
