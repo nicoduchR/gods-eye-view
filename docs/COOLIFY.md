@@ -1,6 +1,6 @@
 # Coolify deployment
 
-The MERZA instance runs at `https://eye.merza.fr`, from the `main` branch of
+The MERZA instance runs at `https://eyes.merza.fr`, from the `main` branch of
 `nicoduchR/gods-eye-view`. The original project remains available through the
 local `origin` Git remote; the deployment fork uses the `merza` remote.
 
@@ -15,7 +15,7 @@ Set these runtime-only variables in Coolify:
 ```dotenv
 HOST=0.0.0.0
 PORT=4173
-GEV_ALLOWED_HOSTS=eye.merza.fr
+GEV_ALLOWED_HOSTS=eyes.merza.fr
 GEV_KEY_SETUP_TRUSTED_PEERS=127.0.0.1
 OPENSKY_AUTH_MODE=anon
 ```
@@ -31,7 +31,7 @@ on push to `main`, use commit `HEAD`, disable pull request previews, and enable
 HTTPS. Keep build-argument injection disabled. Updates to the original project
 must be reviewed and pushed to the fork before they reach this instance.
 
-DNS: create an `A` record for `eye.merza.fr` pointing to `195.35.0.213`.
+DNS: create an `A` record for `eyes.merza.fr` pointing to `195.35.0.213`.
 Coolify terminates HTTPS and routes to port `4173` on its private Docker network.
 The app's cache is disposable and is rebuilt when the container is replaced.
 
