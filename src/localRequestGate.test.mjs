@@ -9,6 +9,103 @@ const same = {
   secFetchSite: 'same-origin',
 };
 
+const hosted = {
+  hostHeader: 'eyes.merza.fr',
+  protocol: 'http:',
+  secFetchSite: 'same-origin',
+  proxyHeaders: {
+    'x-forwarded-proto': 'https',
+    'x-forwarded-for': '192.0.2.1',
+  },
+  publicOrigin: 'https://eyes.merza.fr',
+};
+
+test('an explicitly hosted provider accepts same-origin browser fetches behind TLS termination', () => {
+  assert.equal(admitSameSiteRequest(hosted).ok, true);
+  assert.equal(
+    admitSameSiteRequest({ ...hosted, origin: hosted.publicOrigin }).ok,
+    true,
+  );
+});
+
+test('hosting requires an exact canonical HTTPS origin and never defaults to allowing proxies', () => {
+  for (const publicOrigin of [
+    undefined,
+    '',
+    '*',
+    'not a URL',
+    'http://eyes.merza.fr',
+    'https://eyes.merza.fr/',
+    'https://eyes.merza.fr/path',
+    'https://user@eyes.merza.fr',
+    'https://eyes.merza.fr?x=1',
+  ]) {
+    assert.equal(
+      admitSameSiteRequest({ ...hosted, publicOrigin }).ok,
+      false,
+      String(publicOrigin),
+    );
+  }
+});
+
+test('hosted providers refuse foreign/opaque origins and requests without same-origin fetch metadata', () => {
+  for (const origin of [
+    'https://evil.example',
+    'null',
+    'http://eyes.merza.fr',
+    'https://eyes.merza.fr:444',
+    'https://eyes.merza.fr/path',
+  ]) {
+    assert.equal(admitSameSiteRequest({ ...hosted, origin }).ok, false, origin);
+  }
+  for (const secFetchSite of [
+    undefined,
+    '',
+    'none',
+    'cross-site',
+    'same-site',
+  ]) {
+    assert.equal(
+      admitSameSiteRequest({ ...hosted, secFetchSite }).ok,
+      false,
+      String(secFetchSite),
+    );
+  }
+});
+
+test('forwarding headers cannot override the configured hosted authority', () => {
+  for (const hostHeader of [
+    undefined,
+    '',
+    'evil.example',
+    'eyes.merza.fr:444',
+    'eyes.merza.fr@evil.example',
+  ]) {
+    assert.equal(
+      admitSameSiteRequest({
+        ...hosted,
+        hostHeader,
+        proxyHeaders: {
+          'x-forwarded-host': 'eyes.merza.fr',
+          'x-forwarded-proto': 'https',
+        },
+      }).ok,
+      false,
+    );
+  }
+  assert.equal(
+    admitSameSiteRequest({
+      ...hosted,
+      proxyHeaders: {
+        'x-forwarded-host': 'evil.example',
+        'x-forwarded-proto': 'http',
+      },
+    }).ok,
+    true,
+    'configured HTTPS origin supplies the authority',
+  );
+});
+
 test('the honest same-origin browser request is admitted', () => {
   assert.equal(admitSameSiteRequest(same).ok, true);
 });
@@ -46,12 +143,29 @@ test('Sec-Fetch-Site same-site (cross-origin sibling) is refused', () => {
 });
 
 test('a reverse-proxy signal header is refused', () => {
-  for (const header of ['x-forwarded-for', 'forwarded', 'via', 'cf-connecting-ip', 'cf-ray', 'x-real-ip', 'x-forwarded-host', 'x-forwarded-port', 'x-forwarded-proto']) {
-    const r = admitSameSiteRequest({ ...same, proxyHeaders: { [header]: 'anything' } });
+  for (const header of [
+    'x-forwarded-for',
+    'forwarded',
+    'via',
+    'cf-connecting-ip',
+    'cf-ray',
+    'x-real-ip',
+    'x-forwarded-host',
+    'x-forwarded-port',
+    'x-forwarded-proto',
+  ]) {
+    const r = admitSameSiteRequest({
+      ...same,
+      proxyHeaders: { [header]: 'anything' },
+    });
     assert.equal(r.ok, false, `${header} present → refused`);
   }
   // An empty forwarding header is not a proxy signal.
-  assert.equal(admitSameSiteRequest({ ...same, proxyHeaders: { 'x-forwarded-for': '' } }).ok, true);
+  assert.equal(
+    admitSameSiteRequest({ ...same, proxyHeaders: { 'x-forwarded-for': '' } })
+      .ok,
+    true,
+  );
 });
 
 test('same-origin Origin with Sec-Fetch-Site same-origin is admitted', () => {
@@ -88,20 +202,47 @@ test('a LAN remote address is irrelevant: the function takes no remoteAddress', 
 });
 
 test('a cross-port or cross-scheme Origin against the same Host is refused', () => {
-  assert.equal(admitSameSiteRequest({ ...same, origin: 'http://localhost:4174' }).ok, false, 'cross-port');
-  assert.equal(admitSameSiteRequest({ ...same, origin: 'https://localhost:4173' }).ok, false, 'cross-scheme');
-  assert.equal(admitSameSiteRequest({ ...same, origin: 'http://127.0.0.1:4173' }).ok, false, 'different loopback host');
+  assert.equal(
+    admitSameSiteRequest({ ...same, origin: 'http://localhost:4174' }).ok,
+    false,
+    'cross-port',
+  );
+  assert.equal(
+    admitSameSiteRequest({ ...same, origin: 'https://localhost:4173' }).ok,
+    false,
+    'cross-scheme',
+  );
+  assert.equal(
+    admitSameSiteRequest({ ...same, origin: 'http://127.0.0.1:4173' }).ok,
+    false,
+    'different loopback host',
+  );
 });
 
 test('an unparseable Origin is refused', () => {
-  assert.equal(admitSameSiteRequest({ ...same, origin: 'not a url' }).ok, false);
+  assert.equal(
+    admitSameSiteRequest({ ...same, origin: 'not a url' }).ok,
+    false,
+  );
 });
 
 test('a missing Host with a present Origin is refused (no authority to match)', () => {
-  assert.equal(admitSameSiteRequest({ ...same, hostHeader: '' }).ok, false, 'empty Host → null authority');
-  assert.equal(admitSameSiteRequest({ ...same, hostHeader: undefined }).ok, false, 'absent Host → null authority');
+  assert.equal(
+    admitSameSiteRequest({ ...same, hostHeader: '' }).ok,
+    false,
+    'empty Host → null authority',
+  );
+  assert.equal(
+    admitSameSiteRequest({ ...same, hostHeader: undefined }).ok,
+    false,
+    'absent Host → null authority',
+  );
 });
 
 test('a foreign Host is refused when an Origin is present', () => {
-  assert.equal(admitSameSiteRequest({ ...same, hostHeader: 'evil.example:4173' }).ok, false, 'foreign Host does not match local Origin');
+  assert.equal(
+    admitSameSiteRequest({ ...same, hostHeader: 'evil.example:4173' }).ok,
+    false,
+    'foreign Host does not match local Origin',
+  );
 });

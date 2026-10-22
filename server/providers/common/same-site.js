@@ -8,17 +8,21 @@ import { admitSameSiteRequest } from '../../../src/localRequestGate.mjs';
  * Refuses cross-site browser requests (foreign or opaque Origin, a
  * Sec-Fetch-Site other than same-origin/none, or reverse-proxy headers) while
  * keeping loopback non-browser tools and the HOST=0.0.0.0 LAN opt-in working.
+ * A provider may explicitly opt into hosting with an exact HTTPS publicOrigin;
+ * proxied requests then require a matching Host and same-origin fetch metadata.
  * @param {import('node:http').IncomingMessage} req
  * @param {import('node:http').ServerResponse} res
+ * @param {{publicOrigin?: string}} options
  * @returns {boolean} True when a 403 was sent.
  */
-export function admitSameSite(req, res) {
+export function admitSameSite(req, res, { publicOrigin } = {}) {
   const verdict = admitSameSiteRequest({
     hostHeader: req.headers?.host,
     protocol: req.socket?.encrypted ? 'https:' : 'http:',
     origin: req.headers?.origin,
     secFetchSite: req.headers?.['sec-fetch-site'],
     proxyHeaders: req.headers || {},
+    publicOrigin,
   });
   if (verdict.ok) return false;
   res.statusCode = verdict.status;

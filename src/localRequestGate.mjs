@@ -76,7 +76,10 @@ function requestAuthority(hostHeader, protocol) {
  * to admit. Pure: no I/O, no globals.
  *
  * Policy, in order:
- *  1. any reverse-proxy / CDN signal header present (PROXY_SIGNALS) → 403;
+ *  1. any reverse-proxy / CDN signal header present (PROXY_SIGNALS) → 403,
+ *     unless the caller explicitly enables a canonical HTTPS publicOrigin,
+ *     Host matches it and Sec-Fetch-Site is same-origin. The configured origin
+ *     supplies the scheme; forwarding headers never choose the authority;
  *  2. `Sec-Fetch-Site` present and not `same-origin` / `none` → 403 (this is
  *     what blocks `<img src=...>` and cross-site navigation, which carry no
  *     Origin but do carry `Sec-Fetch-Site: cross-site`);
@@ -87,7 +90,7 @@ function requestAuthority(hostHeader, protocol) {
  *  4. otherwise ok. Non-browser loopback tools and the LAN opt-in (which may
  *     carry neither `Origin` nor `Sec-Fetch-Site`) pass here.
  *
- * @param {{hostHeader?: string, protocol?: string, origin?: string, secFetchSite?: string, proxyHeaders?: Record<string,string>}} req
+ * @param {{hostHeader?: string, protocol?: string, origin?: string, secFetchSite?: string, proxyHeaders?: Record<string,string>, publicOrigin?: string}} req
  * @returns {{ok: true} | {ok: false, status: 403, error: string}}
  */
 export function admitSameSiteRequest({
@@ -96,15 +99,31 @@ export function admitSameSiteRequest({
   origin,
   secFetchSite,
   proxyHeaders = {},
+  publicOrigin,
 } = {}) {
-  // (1) A request carrying reverse-proxy / CDN forwarding headers did not
-  // originate on this machine, whatever its socket says.
+  // (1) Hosted providers must opt in explicitly. Never infer the public
+  // authority from client-supplied X-Forwarded-Host/Proto headers.
   if (hasProxySignals(proxyHeaders)) {
-    return {
-      ok: false,
-      status: 403,
-      error: 'Proxied requests are not accepted',
-    };
+    let configured;
+    try {
+      configured = new URL(publicOrigin);
+    } catch {
+      // Missing/malformed configuration retains the local-only policy.
+    }
+    if (
+      !configured ||
+      configured.protocol !== 'https:' ||
+      configured.origin !== publicOrigin ||
+      requestAuthority(hostHeader, 'https:') !== configured.origin ||
+      secFetchSite !== 'same-origin'
+    ) {
+      return {
+        ok: false,
+        status: 403,
+        error: 'Proxied requests are not accepted',
+      };
+    }
+    protocol = 'https:';
   }
   // (2) The browser tells us when a request is cross-site. `none` is a typed
   // URL / bookmark; `same-origin` is the app itself. Anything else (cross-site,

@@ -170,7 +170,12 @@ export function tomtomProxy() {
   const installMiddleware = (server) => {
     server.middlewares.use('/api/tomtom', async (req, res) => {
       // Gate first: a cross-site <img>/fetch must not reach the budget counter.
-      if (admitSameSite(req, res)) return;
+      if (
+        admitSameSite(req, res, {
+          publicOrigin: process.env.TOMTOM_PUBLIC_ORIGIN,
+        })
+      )
+        return;
       // Sanitized responses only (proxy/security baseline): no upstream
       // error details, and never echo the key or the upstream URL.
       const sendJson = (status, obj, extraHeaders = {}) => {

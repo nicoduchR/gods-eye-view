@@ -257,6 +257,53 @@ test('traffic refuses cross-site requests in dev and preview before spending the
   }
 });
 
+test('hosted traffic admits the configured app through a proxy without exposing the key or spending on cross-site requests', async (t) => {
+  isolate(t, {
+    TOMTOM_API_KEY: 'fixture-secret',
+    TOMTOM_PUBLIC_ORIGIN: 'https://eyes.merza.fr',
+    TOMTOM_DAILY_TILE_BUDGET: '3',
+  });
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (raw) => {
+    calls++;
+    const upstream = new URL(raw);
+    assert.equal(upstream.origin, 'https://api.tomtom.com');
+    assert.equal(upstream.searchParams.get('key'), 'fixture-secret');
+    return new Response(new Uint8Array([1, 2, 3]));
+  });
+  const app = {
+    host: 'eyes.merza.fr',
+    'sec-fetch-site': 'same-origin',
+    'x-forwarded-for': '192.0.2.1',
+    'x-forwarded-proto': 'https',
+  };
+  for (const hook of ['configureServer', 'configurePreviewServer']) {
+    const request = install(tomtomProxy(), hook);
+    const before = calls;
+    for (const headers of [
+      { ...app, 'sec-fetch-site': 'cross-site' },
+      { ...app, origin: 'https://evil.example' },
+      { ...app, 'sec-fetch-site': undefined },
+      { ...app, host: 'evil.example', 'x-forwarded-host': 'eyes.merza.fr' },
+    ]) {
+      assert.equal((await request('/status', 'GET', headers)).status, 403);
+      assert.equal(
+        (await request('/flow/8/1/1.pbf', 'GET', headers)).status,
+        403,
+      );
+    }
+    assert.equal(calls, before, 'refused requests never reach TomTom');
+    const status = await request('/status', 'GET', app);
+    assert.equal(status.status, 200);
+    assert.equal(json(status).hasKey, true);
+    assert.equal(json(status).dailyCount, 0);
+    assert.equal(String(status.body).includes('fixture-secret'), false);
+    assert.equal((await request('/flow/8/1/1.pbf', 'GET', app)).status, 200);
+    assert.equal(calls, before + 1);
+    assert.equal(json(await request('/status', 'GET', app)).dailyCount, 1);
+  }
+});
+
 test('traffic middleware answers 502 to an oversized tile without caching it', async (t) => {
   isolate(t, { TOMTOM_API_KEY: 'fixture-key', TOMTOM_DAILY_TILE_BUDGET: '' });
   const bodies = [];
