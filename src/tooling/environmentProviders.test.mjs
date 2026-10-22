@@ -260,7 +260,7 @@ test('traffic refuses cross-site requests in dev and preview before spending the
 test('hosted traffic admits the configured app through a proxy without exposing the key or spending on cross-site requests', async (t) => {
   isolate(t, {
     TOMTOM_API_KEY: 'fixture-secret',
-    TOMTOM_PUBLIC_ORIGIN: 'https://eyes.merza.fr',
+    TOMTOM_PUBLIC_ORIGIN: 'https://globe.example.com',
     TOMTOM_DAILY_TILE_BUDGET: '3',
   });
   let calls = 0;
@@ -272,7 +272,7 @@ test('hosted traffic admits the configured app through a proxy without exposing 
     return new Response(new Uint8Array([1, 2, 3]));
   });
   const app = {
-    host: 'eyes.merza.fr',
+    host: 'globe.example.com',
     'sec-fetch-site': 'same-origin',
     'x-forwarded-for': '192.0.2.1',
     'x-forwarded-proto': 'https',
@@ -284,7 +284,7 @@ test('hosted traffic admits the configured app through a proxy without exposing 
       { ...app, 'sec-fetch-site': 'cross-site' },
       { ...app, origin: 'https://evil.example' },
       { ...app, 'sec-fetch-site': undefined },
-      { ...app, host: 'evil.example', 'x-forwarded-host': 'eyes.merza.fr' },
+      { ...app, host: 'evil.example', 'x-forwarded-host': 'globe.example.com' },
     ]) {
       assert.equal((await request('/status', 'GET', headers)).status, 403);
       assert.equal(

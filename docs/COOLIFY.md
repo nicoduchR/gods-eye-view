@@ -1,8 +1,8 @@
 # Coolify deployment
 
-The MERZA instance runs at `https://eyes.merza.fr`, from the `main` branch of
-`nicoduchR/gods-eye-view`. The original project remains available through the
-local `origin` Git remote; the deployment fork uses the `merza` remote.
+Create an application connected to your repository and select the branch
+you want to deploy. The configuration below uses `globe.example.com` as an
+example domain; replace it with your own hostname.
 
 Use the repository's `/Dockerfile`, build context `/`, and internal port
 `4173`. Do not publish a host port. The Vite server serves both the globe and
@@ -15,7 +15,7 @@ Set these runtime-only variables in Coolify:
 ```dotenv
 HOST=0.0.0.0
 PORT=4173
-GEV_ALLOWED_HOSTS=eyes.merza.fr
+GEV_ALLOWED_HOSTS=globe.example.com
 GEV_KEY_SETUP_TRUSTED_PEERS=127.0.0.1
 OPENSKY_AUTH_MODE=anon
 ```
@@ -26,12 +26,11 @@ Public requests through the reverse proxy cannot administer keys or the local
 MCP endpoint. If provider keys are added later, manage them as runtime secrets
 in Coolify; never place them in Git or Docker build arguments.
 
-Connect the fork through the existing GitHub App. Enable automatic deployment
-on push to `main`, use commit `HEAD`, disable pull request previews, and enable
-HTTPS. Keep build-argument injection disabled. Updates to the original project
-must be reviewed and pushed to the fork before they reach this instance.
+Connect the repository through a GitHub App. Enable automatic deployment
+on push to the selected branch, use commit `HEAD`, disable pull request previews,
+and enable HTTPS. Keep build-argument injection disabled.
 
-DNS: create an `A` record for `eyes.merza.fr` pointing to `195.35.0.213`.
+DNS: create an `A` record for your hostname pointing to the deployment server.
 Coolify terminates HTTPS and routes to port `4173` on its private Docker network.
 The app's cache is disposable and is rebuilt when the container is replaced.
 

@@ -10,14 +10,14 @@ const same = {
 };
 
 const hosted = {
-  hostHeader: 'eyes.merza.fr',
+  hostHeader: 'globe.example.com',
   protocol: 'http:',
   secFetchSite: 'same-origin',
   proxyHeaders: {
     'x-forwarded-proto': 'https',
     'x-forwarded-for': '192.0.2.1',
   },
-  publicOrigin: 'https://eyes.merza.fr',
+  publicOrigin: 'https://globe.example.com',
 };
 
 test('an explicitly hosted provider accepts same-origin browser fetches behind TLS termination', () => {
@@ -34,11 +34,11 @@ test('hosting requires an exact canonical HTTPS origin and never defaults to all
     '',
     '*',
     'not a URL',
-    'http://eyes.merza.fr',
-    'https://eyes.merza.fr/',
-    'https://eyes.merza.fr/path',
-    'https://user@eyes.merza.fr',
-    'https://eyes.merza.fr?x=1',
+    'http://globe.example.com',
+    'https://globe.example.com/',
+    'https://globe.example.com/path',
+    'https://user@globe.example.com',
+    'https://globe.example.com?x=1',
   ]) {
     assert.equal(
       admitSameSiteRequest({ ...hosted, publicOrigin }).ok,
@@ -52,9 +52,9 @@ test('hosted providers refuse foreign/opaque origins and requests without same-o
   for (const origin of [
     'https://evil.example',
     'null',
-    'http://eyes.merza.fr',
-    'https://eyes.merza.fr:444',
-    'https://eyes.merza.fr/path',
+    'http://globe.example.com',
+    'https://globe.example.com:444',
+    'https://globe.example.com/path',
   ]) {
     assert.equal(admitSameSiteRequest({ ...hosted, origin }).ok, false, origin);
   }
@@ -78,15 +78,15 @@ test('forwarding headers cannot override the configured hosted authority', () =>
     undefined,
     '',
     'evil.example',
-    'eyes.merza.fr:444',
-    'eyes.merza.fr@evil.example',
+    'globe.example.com:444',
+    'globe.example.com@evil.example',
   ]) {
     assert.equal(
       admitSameSiteRequest({
         ...hosted,
         hostHeader,
         proxyHeaders: {
-          'x-forwarded-host': 'eyes.merza.fr',
+          'x-forwarded-host': 'globe.example.com',
           'x-forwarded-proto': 'https',
         },
       }).ok,
