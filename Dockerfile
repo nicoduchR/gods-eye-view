@@ -39,6 +39,10 @@ COPY --chown=node:node . .
 ENV HOST=0.0.0.0
 ENV PORT=4173
 EXPOSE 4173
+# Check the same HTTP server that serves the globe and provider middleware.
+# Use Node's built-in fetch so the image needs no additional healthcheck tools.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+  CMD node --input-type=module -e 'try { const response = await fetch(`http://127.0.0.1:${process.env.PORT || 4173}/`, { signal: AbortSignal.timeout(8000) }); process.exit(response.ok ? 0 : 1); } catch { process.exit(1); }'
 # The launcher is `npm run dev` plus one step: it trusts the container's
 # gateway address for Provider Settings, because that is where Docker delivers
 # the host's own browser from (never 127.0.0.1). See scripts/docker-start.mjs.
